@@ -1,0 +1,16 @@
+1 Arduino Uno with Cable
+1 Breadboard
+
+6 Tactile Buttons
+1 Red LED
+1 Green LED
+1 Blue LED
+1 RGB LED (4-pin)
+1 Seven Segment Display (Common Cathode)
+
+6 1K ohms Resistor
+13 220 ohms Resistor
+
+Jumping Wires
+
+

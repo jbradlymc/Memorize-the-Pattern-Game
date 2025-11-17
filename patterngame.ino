@@ -11,13 +11,12 @@ int buttonPins[6] = {A0, A1, A2, A3, A4, A5};
 // A4 = increment numPatterns
 // A5 = decrement numPatterns
 
+const int minPatterns = 3;
 const int maxPatterns = 9;
 int numPatterns = 3;
-int lives = 3;
 
 int pattern[20];
-int playerIndex = 0;
-int speed = 700;
+int speed;
 
 const byte digits[10] = {
   0b00111111, //0
@@ -46,29 +45,29 @@ void setup() {
 void loop() {
 
   if(digitalRead(buttonPins[4]) == LOW){
-    numPatterns++;
-    if(numPatterns > maxPatterns) numPatterns = maxPatterns;
+    if(numPatterns < maxPatterns) numPatterns++;
     displaySSD(numPatterns);
     delay(200);
   }
 
   if(digitalRead(buttonPins[5]) == LOW){
-    numPatterns--;
-    if(numPatterns < 1) numPatterns = 1;
+    if(numPatterns > minPatterns) numPatterns--;
     displaySSD(numPatterns);
     delay(200);
   }
 
+  // start game
   if(digitalRead(buttonPins[3]) == LOW){
     
+    // reset game settings
+    int lives = 3;
+    int playerIndex = 0;
+    speed = 700; 
+    displaySSD(lives);
+    delay(200);
+
     generatePattern(numPatterns);
     playPattern(numPatterns);
-
-    lives = 3;
-    displaySSD(lives);
-
-    playerIndex = 0;
-    speed = 700;
 
     while(lives > 0){
 
@@ -83,7 +82,7 @@ void loop() {
         if(playerInput == pattern[playerIndex]){
           playerIndex++;
 
-          // Completed the whole pattern
+          // completed the whole pattern
           if(playerIndex >= numPatterns){
             speed = max(200, speed - 100);  // harder next round
             generatePattern(numPatterns);
@@ -92,18 +91,18 @@ void loop() {
           }
 
         } else {
-          // WRONG PRESS
+          // wrong press
           lives--;
           displaySSD(lives);
           playerIndex = 0;
 
           if(lives <= 0){
             delay(1000);
-            displaySSD(numPatterns);
+            displaySSD(numPatterns); // back to selection screen
           }
         }
 
-        delay(200); // debounce
+        delay(200);
       }
     }
   }
@@ -112,10 +111,7 @@ void loop() {
 void displaySSD(int num) {
   byte seg = digits[num];
   for(int i=0; i<7; i++){
-    if (seg & (1 << i))
-      digitalWrite(ssdPins[i], HIGH);   // turn segment ON
-    else
-      digitalWrite(ssdPins[i], LOW);    // turn segment OFF
+    digitalWrite(ssdPins[i], (seg & (1 << i)) ? HIGH : LOW);
   }
 }
 
@@ -124,6 +120,7 @@ void showRGB(int color) {
     digitalWrite(rgbPins[i], i==color ? HIGH : LOW);
   }
 }
+
 void clearRGB() {
   for(int i=0; i<3; i++) digitalWrite(rgbPins[i], LOW);
 }
@@ -133,6 +130,7 @@ void showPlayerLED(int color){
     digitalWrite(ledPins[i], i==color ? HIGH : LOW);
   }
 }
+
 void clearPlayerLEDs(){
   for (int i=0; i<3; i++) digitalWrite(ledPins[i], LOW);
 }
@@ -145,7 +143,7 @@ void generatePattern(int n) {
 
 void playPattern(int n) {
   for (int i=0; i<n; i++){
-    showRGB (pattern[i]);
+    showRGB(pattern[i]);
     delay(speed);
     clearRGB();
     delay(200);
@@ -156,7 +154,7 @@ int getPlayerInput() {
   for (int i = 0; i < 3; i++) {
     if (digitalRead(buttonPins[i]) == LOW) {
       delay(20);  // debounce
-      while (digitalRead(buttonPins[i]) == LOW);
+      while (digitalRead(buttonPins[i]) == LOW); // wait until release
       return i;
     }
   }

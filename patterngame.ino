@@ -1,18 +1,23 @@
 int ssdPins[7] = {1, 2, 3, 4, 5, 6, 7}; 
-int rgbPins[3] = {8, 9, 10};
-int ledPins[3] = {11, 12, 13};
+int rgbPins[3] = {8, 9, 10};       
+int ledPins[3] = {11, 12, 13};   
 
 int buttonPins[6] = {A0, A1, A2, A3, A4, A5};
-
+// buttons:
+// A0 = button 1 (red)
+// A1 = button 2 (green)
+// A2 = button 3 (blue)
+// A3 = start button
+// A4 = increment numPatterns
+// A5 = decrement numPatterns
 
 const int maxPatterns = 9;
-int numPatterns = 3;  //default
+int numPatterns = 3;
 int lives = 3;
 
-int pattern[20];       // store RGB pattern
-int patternIndex = 0;
+int pattern[20];
 int playerIndex = 0;
-int speed = 700;     
+int speed = 700;
 
 const byte digits[10] = {
   0b00111111, //0
@@ -27,108 +32,133 @@ const byte digits[10] = {
   0b01101111  //9
 };
 
+void setup() {
+  for (int i=0; i<3; i++) pinMode(ledPins[i], OUTPUT);
+  for (int i=0; i<3; i++) pinMode(rgbPins[i], OUTPUT);
+  for (int i=0; i<7; i++) pinMode(ssdPins[i], OUTPUT);
+
+  for (int i=0; i<6; i++) pinMode(buttonPins[i], INPUT_PULLUP);
+
+  randomSeed(analogRead(0));
+  displaySSD(numPatterns);
+}
+
+void loop() {
+
+  if(digitalRead(buttonPins[4]) == LOW){
+    numPatterns++;
+    if(numPatterns > maxPatterns) numPatterns = maxPatterns;
+    displaySSD(numPatterns);
+    delay(200);
+  }
+
+  if(digitalRead(buttonPins[5]) == LOW){
+    numPatterns--;
+    if(numPatterns < 1) numPatterns = 1;
+    displaySSD(numPatterns);
+    delay(200);
+  }
+
+  if(digitalRead(buttonPins[3]) == LOW){
+    
+    generatePattern(numPatterns);
+    playPattern(numPatterns);
+
+    lives = 3;
+    displaySSD(lives);
+
+    playerIndex = 0;
+    speed = 700;
+
+    while(lives > 0){
+
+      int playerInput = getPlayerInput();
+
+      if(playerInput != -1){
+
+        showPlayerLED(playerInput); 
+        delay(250);
+        clearPlayerLEDs();
+
+        if(playerInput == pattern[playerIndex]){
+          playerIndex++;
+
+          // Completed the whole pattern
+          if(playerIndex >= numPatterns){
+            speed = max(200, speed - 100);  // harder next round
+            generatePattern(numPatterns);
+            playPattern(numPatterns);
+            playerIndex = 0;
+          }
+
+        } else {
+          // WRONG PRESS
+          lives--;
+          displaySSD(lives);
+          playerIndex = 0;
+
+          if(lives <= 0){
+            delay(1000);
+            displaySSD(numPatterns);
+          }
+        }
+
+        delay(200); // debounce
+      }
+    }
+  }
+}
+
 void displaySSD(int num) {
-  for(int i=0;i<7;i++){
-    digitalWrite(ssdPins[i], (digits[num] >> i) & 0x01);
+  byte seg = digits[num];
+  for(int i=0; i<7; i++){
+    if (seg & (1 << i))
+      digitalWrite(ssdPins[i], HIGH);   // turn segment ON
+    else
+      digitalWrite(ssdPins[i], LOW);    // turn segment OFF
   }
 }
 
 void showRGB(int color) {
-  for(int i=0;i<3;i++){
+  for(int i=0; i<3; i++){
     digitalWrite(rgbPins[i], i==color ? HIGH : LOW);
   }
 }
-
 void clearRGB() {
-  for(int i=0;i<3;i++) digitalWrite(rgbPins[i], LOW);
+  for(int i=0; i<3; i++) digitalWrite(rgbPins[i], LOW);
+}
+
+void showPlayerLED(int color){
+  for(int i=0; i<3; i++){
+    digitalWrite(ledPins[i], i==color ? HIGH : LOW);
+  }
+}
+void clearPlayerLEDs(){
+  for (int i=0; i<3; i++) digitalWrite(ledPins[i], LOW);
 }
 
 void generatePattern(int n) {
-  for(int i=0;i<n;i++){
-    pattern[i] = random(0,3); // 0=Red,1=Green,2=Blue
+  for (int i=0; i<n; i++){
+    pattern[i] = random(3);
   }
 }
 
 void playPattern(int n) {
-  for(int i=0;i<n;i++){
-    showRGB(pattern[i]);
+  for (int i=0; i<n; i++){
+    showRGB (pattern[i]);
     delay(speed);
     clearRGB();
     delay(200);
   }
 }
 
-// ------------------ Setup ------------------
-void setup() {
-  // Initialize LEDs
-  for(int i=0;i<3;i++) pinMode(ledPins[i], OUTPUT);
-  for(int i=0;i<3;i++) pinMode(rgbPins[i], OUTPUT);
-  for(int i=0;i<7;i++) pinMode(ssdPins[i], OUTPUT);
-  
-  // Initialize buttons
-  for(int i=0;i<6;i++) pinMode(buttonPins[i], INPUT_PULLUP);
-
-  randomSeed(analogRead(0));
-  displaySSD(numPatterns);
-}
-
-// ------------------ Main Loop ------------------
-void loop() {
-  // Increment/decrement number of patterns
-  if(digitalRead(buttonPins[4])==LOW){ // Inc
-    numPatterns++;
-    if(numPatterns>maxPatterns) numPatterns=maxPatterns;
-    displaySSD(numPatterns);
-    delay(200);
-  }
-  if(digitalRead(buttonPins[5])==LOW){ // Dec
-    numPatterns--;
-    if(numPatterns<1) numPatterns=1;
-    displaySSD(numPatterns);
-    delay(200);
-  }
-
-  // Start game
-  if(digitalRead(buttonPins[3])==LOW){ // Start button
-    generatePattern(numPatterns);
-    playPattern(numPatterns);
-
-    lives = 3;
-    displaySSD(lives);
-    playerIndex = 0;
-    speed = 700;
-
-    while(lives>0){
-      int playerInput = -1;
-      if(digitalRead(buttonPins[0])==LOW) playerInput=0; // Red
-      if(digitalRead(buttonPins[1])==LOW) playerInput=1; // Green
-      if(digitalRead(buttonPins[2])==LOW) playerInput=2; // Blue
-
-      if(playerInput != -1){
-        showRGB(playerInput);
-        delay(300);
-        clearRGB();
-
-        if(playerInput == pattern[playerIndex]){
-          playerIndex++;
-          if(playerIndex >= numPatterns){
-            // Player completed pattern
-            speed = max(200, speed-100); // increase difficulty
-            generatePattern(numPatterns);
-            playPattern(numPatterns);
-            playerIndex = 0;
-          }
-        } else {
-          lives--;
-          displaySSD(lives);
-          playerIndex = 0;
-          if(lives <= 0){
-            delay(1000);
-            displaySSD(numPatterns); // reset to selection
-          }
-        }
-        delay(200); // debounce
-      }
+int getPlayerInput() {
+  for (int i = 0; i < 3; i++) {
+    if (digitalRead(buttonPins[i]) == LOW) {
+      delay(20);  // debounce
+      while (digitalRead(buttonPins[i]) == LOW);
+      return i;
     }
   }
+  return -1;
 }
